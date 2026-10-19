@@ -46,7 +46,7 @@ class IntegrityTests(unittest.TestCase):
         path = self.root / "simulated-link"
         path.write_bytes(b"x")
         original = fs.is_link
-        with patch.object(fs, "is_link", side_effect=lambda candidate: candidate == path or original(candidate)):
+        with patch.object(fs, "is_link", side_effect=lambda candidate: candidate.resolve() == path.resolve() or original(candidate)):
             with patch.object(fs, "digest_file", side_effect=AssertionError("link must not be read")):
                 manifest = fs.snapshot(self.root)
         self.assertEqual(manifest["skipped"], ["simulated-link"])
