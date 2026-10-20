@@ -1,68 +1,71 @@
 # FileSentinel
 
-Save file hashes for a directory, then compare two snapshots to list added,
-removed and changed files. Snapshots use SHA-256 and relative paths.
-
-Python 3.12+. Standard library only. [Design notes, RU](docs/design.ru.md).
+What changed in a directory between two runs? FileSentinel records relative paths,
+sizes and SHA-256 hashes, then lists added, removed and changed files. It is a
+single Python 3.12+ script using only the standard library.
 
 ## Quick start
 
-Keep the snapshot files **outside** the scanned directory:
+Keep both snapshots **outside** the directory you scan:
 
 ```sh
 python filesentinel.py snapshot ./documents -o before.json --exclude '*.tmp'
-# Make changes to documents, then use the same exclusion patterns.
+# Edit documents, then repeat with the same exclusions.
 python filesentinel.py snapshot ./documents -o after.json --exclude '*.tmp'
 python filesentinel.py compare before.json after.json
 python filesentinel.py compare before.json after.json --json
 ```
 
-On Windows, replace `python` with `py -3` if that is your installed launcher.
-Paths containing spaces should be quoted.
+On Windows, `py -3` can replace `python`. Quote paths containing spaces.
+
+A repeatable example in [docs/example.md](docs/example.md) changes a checklist,
+adds a note and removes an old file. Its actual CLI output is:
 
 ```text
 Added: 1
   notes/new.txt
-Removed: 0
+Removed: 1
+  notes/old.txt
 Changed: 1
   notes/checklist.txt
-Unchanged: 12
+Unchanged: 1
 ```
 
-Exit codes: **0** success/no differences, **1** differences found by compare,
-**2** input or filesystem error. `--version` prints the application version.
+`compare` returns **0** for identical snapshots, **1** for differences and **2** for
+an input or filesystem error. `snapshot` returns 0 when it saves successfully.
+`--version` prints the version.
 
-## Snapshot contract
+## What goes into a snapshot
 
-JSON contains schema_version 1, algorithm sha256, UTC creation time, exclusion
-patterns, skipped paths, and a sorted mapping from relative POSIX paths to file
-size and lowercase SHA-256. Absolute source paths are not stored.
+JSON schema version 1 stores the algorithm, UTC creation time, effective exclusion
+patterns, skipped paths and a sorted file table. Paths use `/` and are relative
+to the scanned directory. The absolute source path is omitted.
 
-Exclusions use case-sensitive glob matching against the full relative path.
-Repeat `--exclude` for multiple patterns; `cache/**` excludes a directory tree.
-Compare refuses snapshots with different exclusion patterns.
+`--exclude` matches case-sensitive globs against the full relative path. Repeat
+it for multiple patterns; `cache/**` excludes a directory tree. Comparing different
+exclusion sets is an error because those snapshots cover different files.
 
-Links, junctions and special files are skipped and listed. A read or traversal
-error prevents saving a partial baseline. Files replaced or modified during
-hashing cause an error; snapshot writes use atomic replacement.
+Links, junctions and special files are listed as skipped. A read or traversal error
+stops the snapshot. Checks around each read catch files replaced or changed during
+hashing; the final JSON replaces its destination atomically.
 
-## Limits and trust
+## Known issues
 
-This compares file contents and paths, not ACLs, alternate data streams, ownership
-or malware behavior. Snapshots are not signed: protect the baseline separately.
-Use a stable directory, not one under concurrent or hostile modification. Per-file
-checks are not an atomic filesystem snapshot, and this is not a privileged scanner.
-Reports and snapshots disclose filenames; inspect them before sharing.
+A scan reads files in sequence, so use a stable directory. It records content and
+paths; ACLs, ownership and alternate data streams are outside the format. Keep the
+baseline separately protected because snapshots are unsigned. Review filenames
+before sharing a report.
 
-## Tests
+## Checking changes
 
 ```sh
 python -m unittest -v
 ```
 
-CI runs on Linux and Windows with Python 3.12 and 3.13. Symlink tests skip on
-hosts that do not permit creating symlinks.
+Checked on Windows with Python 3.12.14: 10 tests. The real symlink case skips when
+the OS denies link creation. CI covers Windows and Linux: junction handling and
+file identity checks depend on the OS. Python 3.12 checks the minimum version;
+3.13 checks compatibility with the next supported version.
 
-See [open tasks](https://github.com/ROGFOG/FileSentinel/issues) for the next steps.
-
-MIT license.
+[Заметки о формате и чтении файлов](docs/design.ru.md) explain the comparison and
+the Windows ctime detail. Distributed under [MIT](LICENSE).
