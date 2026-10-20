@@ -1,7 +1,7 @@
 # FileSentinel
 
-Portable SHA-256 file-integrity snapshots with a small, inspectable implementation.
-Create a baseline, take another snapshot, and see what was added, removed or changed.
+Save file hashes for a directory, then compare two snapshots to list added,
+removed and changed files. Snapshots use SHA-256 and relative paths.
 
 Python 3.12+. Standard library only. [Design notes, RU](docs/design.ru.md).
 
